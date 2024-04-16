@@ -1,8 +1,9 @@
-import requests
-from settings import API_KEY, PROXIES
+from settings import API_KEY, PROXY
+import asyncio
+import aiohttp
 
 
-def question_for_gpt(messages: list) -> list:
+async def question_for_gpt(messages: list) -> list:
     url = "https://api.openai.com/v1/chat/completions"
 
     headers = {
@@ -16,25 +17,23 @@ def question_for_gpt(messages: list) -> list:
         'temperature': 0.7
         }
 
-    response = requests.post(url, headers=headers, json=data, proxies=PROXIES)
-
-    if response.status_code == 200:
-        response_data = response.json()
-        model = response_data['model']
-        answer = response_data['choices'][0]['message']['content']
-        tokens_info = str(response_data['usage'])
-        print(f'{model} Ответил на ваш запрос: {answer}\n{tokens_info}')
-        return answer
-    else:
-        return 0
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, proxy=PROXY, json=data) as response:
+            if response.status == 200:
+                response_data = await response.json()
+                answer = response_data['choices'][0]['message']['content']
+                model = response_data['model']
+                tokens_info = str(response_data['usage'])
+                print(f'{model} Ответил на ваш запрос: {answer}\n{tokens_info}')
+                print(type(response_data))
+                print(response_data)
+    return answer
 
 
 if __name__ == "__main__":
     messages = []
-    while True:
-        messages.append({'role': 'user', 'content': input()})
-        messages.append({'role': 'assistant', 'content': question_for_gpt(messages)})
-
-    # qwery_1 = 'У Миши 10 яблок. 4 яблока он решил раздать Кате и Марине, поровну. Сколько яблок будет у Марины?'
-    # qwery_2 = 'Сколько яблок останется у Миши?'
-    # question_for_gpt("Кому Миша отдал свои яблоки?")
+    messages.append({'role': 'user', 'content': 'Привет'})
+    # task = asyncio.create_task(question_for_gpt(messages))
+    asyncio.run(question_for_gpt(messages))
+    # asyncio.gather(task)
+    messages.append({'role': 'assistant', 'content': question_for_gpt(messages)})
